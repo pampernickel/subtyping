@@ -1,5 +1,16 @@
 `%ni%` = Negate(`%in%`)
 
+# ::: load functions
+source_https <- function(url, ...) {
+  # load package
+  # parse and evaluate each .R script
+  if (!is.loaded("RCurl")) require(RCurl)
+  sapply(c(url, ...), function(u) {
+    eval(parse(text = getURL(u, followlocation = TRUE, cainfo = system.file("CurlSSL", "cacert.pem", package = "RCurl"))), envir = .GlobalEnv)
+  })
+}
+
+# ::: List manipulation
 dropSamples <- function(list, ind){
   # list is of the form
   # found in 20130902.full.list.genes.rda
@@ -32,6 +43,7 @@ orderBy <- function(list, by=c("exprs.mat", "tenomic", "affy.no", "sorted", "hyb
   return(list)
 }
 
+# ::: DE analysis-related functions
 runLimma <- function(df, lab){
   ff <- rep(0,ncol(df))
   ff[which(lab %in% 1)] <- 1
