@@ -61,7 +61,7 @@ setLimmaRun <- function(mat, g, e=""){
   lapply(1:length(g), function(x){
     lab <- rep(0, ncol(mat))
     lab[g[[x]]] <- 1
-    if (e[[x]] %ni% "" && length(g[[x]]) == length(e[[x]])){
+    if (e %ni% "" && length(g) == length(e)){
       lab[e[[x]]] <- NA
     } else {
       stop("Exclusion list should have the same length as the group argument.")
