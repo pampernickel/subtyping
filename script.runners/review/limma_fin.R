@@ -1,7 +1,9 @@
 library(limma)
 library(ggplot2)
+library(RCurl)
 
-source('./scripts/routineFuncs.r')
+getURL('https://raw.githubusercontent.com/pampernickel/subtyping/master/script.runners/routineFuncs.R', ssl.verifypeer = F) -> script
+eval(parse(text=script))
 
 #::: TENOMIC feature selection (from version mapped to symbols)
 load("./r.data.files/second_proc/sub.list.normalized.adjusted.combat.cov_QC.noSex.mapped.symbol.entrezID.w.groups.Rdata") #161 samples
@@ -76,9 +78,8 @@ plotComp(comp, "TENOMIC", "GSE58445")
 
 # ::: Check 1
 # check group assignments of TENOMIC samples that were included in the Iqbal
-# cohort
-rm(list=ls())
-source('./scripts/routineFuncs.r')
+# cohort; clear workspace of all variables as a precaution
+rm(list = setdiff(ls(), lsf.str()))
 load("./r.data.files/results/gep/limma_iqbal.rda")
 ti <- read.csv("./annotations/tenomic_iqbal.csv")
 gsub("TENOMIC", "CRE_TENOMIC_", ti$N..Biobase.TENOMIC..CRE_TENOMIC) -> ti
@@ -86,46 +87,22 @@ unlist(strsplit(ti, " "))[grep("TENOMIC", unlist(strsplit(ti, " ")))] -> tids
 
 # ::: Check 2
 # Iqbal samples in tenomic vs same background as before
-rm(list=ls())
-source('./scripts/routineFuncs.r')
+rm(list = setdiff(ls(), lsf.str()))
 load("./r.data.files/results/gep/limma_iqbal.rda")
 ti <- read.csv("./annotations/tenomic_iqbal.csv")
 gsub("TENOMIC", "CRE_TENOMIC_", ti$N..Biobase.TENOMIC..CRE_TENOMIC) -> ti
 unlist(strsplit(ti, " "))[grep("TENOMIC", unlist(strsplit(ti, " ")))] -> tids
 
 load("./r.data.files/second_proc/sub.list.fin_genes.rda")
-sub.list$groups[which(sub.list$tenomic %in% tids)] -> g
-sub.list$tenomic[which(sub.list$tenomic %in% tids)] -> t
-
-limma.res.tiq <- list()
-for (i in 1:4){
-  lab <- rep(0, length(sub.list$tenomic))
-  lab[which(sub.list$groups %in% i)] <- NA
-  lab[which(sub.list$tenomic %in% 
-              t[which(g %in% i)])] <- 1
-  sub.list$lab <- lab
-  dropSamples(sub.list, which(is.na(sub.list$lab))) -> loc
-  runLimma(loc$exprs.mat, loc$lab) -> limma.res.tiq[[i]]
-}
-
-df.sum <- matrix(0, nrow=0, ncol=3)
-colnames(df.sum) <- c("GSE58445", "TENOMIC", "comparison")
-for (i in 1:length(limma.res.i)){
-  limma.res.i[[i]][order(rownames(limma.res.i[[i]])),] -> iq
-  limma.res.tiq[[i]][order(rownames(limma.res.tiq[[i]])),] -> ten
-  cbind(iq$t, ten$t, rep(paste("Subgroup" ,i, "vs. REST", sep=" "), 
-                         nrow(ten))) -> t
-  colnames(t) <- colnames(df.sum)
-  rbind(df.sum, t) -> df.sum
-}
-
-as.data.frame(df.sum) -> df.sum
-for (i in 1:2){
-  as.numeric(as.character(df.sum[,i])) -> df.sum[,i]
-}
-ggplot(df.sum, aes(x=TENOMIC, y=GSE58445))+
-  geom_point(size=0.5)+facet_wrap(~comparison)+
-  theme_bw()
+dropSamples(sub.list, which(sub.list$groups %in% 0)) -> sub.list
+sapply(unique(sub.list$groups), function(x) 
+  intersect(which(sub.list$tenomic %in% tids), 
+            which(sub.list$groups %in% x))) -> g
+sapply(1:length(g), function(x) 
+  setdiff(which(sub.list$groups %in% x), g[[x]])) -> e
+setLimmaRun(sub.list$exprs.mat, g, e) -> limma.res.tiq
+compareLimmaRes(limma.res.tiq, limma.res.i, "t") -> comp
+plotComp(comp, "TENOMIC_IN_IQBAL", "GSE58445")
 
 # ::: Check 3
 # check -- by subsampling *within* each group -- which samples are
