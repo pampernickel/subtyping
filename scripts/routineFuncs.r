@@ -50,16 +50,22 @@ runLimma <- function(df, lab){
   return(toptab.GRP)
 }
 
-setLimmaRun <- function(mat, g){
+setLimmaRun <- function(mat, g, e=""){
   # mat: exprs.mat
   # g: list containing columns of indices of mat; the length of g corresponds
   # with the number of subgroups; in the case of length(g) == 2, this results
   # in a pairwise comparison; in the case of length(g) > 2, the default mode
-  # would be of the form x vs. rest; alternative mode to follow
+  # would be of the form x vs. rest; alternative mode to follow;
+  # e: exclusion list; should be of the same length as g
   if (!is.loaded("limma")) require(limma)
   lapply(g, function(x){
     lab <- rep(0, ncol(mat))
     lab[x] <- 1
+    if (e %ni% "" && length(g) == length(e)){
+      lab[e] <- NA
+    } else {
+      stop("Exclusion list should have the same length as the group argument.")
+    }
     mat[,which(lab %in% c(0,1))] -> mat
     lab[which(lab %in% c(0,1))] -> lab
     return(runLimma(mat, lab))
