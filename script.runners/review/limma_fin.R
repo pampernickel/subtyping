@@ -3,7 +3,7 @@ library(ggplot2)
 
 source('./scripts/routineFuncs.r')
 
-#::: TENOMIC limma: try with both old and new annotations
+#::: TENOMIC limma
 load("./r.data.files/second_proc/sub.list.normalized.adjusted.combat.cov_QC.noSex.mapped.symbol.entrezID.w.groups.Rdata") #161 samples
 cbind(sub.list$tenomic, sub.list$groups) -> group
 
@@ -23,14 +23,11 @@ mat -> sub.list$exprs.mat
 # save(sub.list, file="./r.data.files/second_proc/sub.list.fin_genes.rda")
 
 # stick to core samples, perform x vs REST comparison
+load("./r.data.files/second_proc/sub.list.fin_genes.rda")
 dropSamples(sub.list, which(sub.list$groups %in% c(0, NA))) -> sub.list
-sapply(unique(sub.list$groups), function(x) sub.list$tenomic[which(sub.list$groups %in% x)]) -> groups
-limma.res.t <- list()
-for (i in 1:length(groups)){
-  lab <- rep(0, length(sub.list$tenomic))
-  lab[which(sub.list$tenomic %in% groups[[i]])] <- 1
-  runLimma(sub.list$exprs.mat, lab) -> limma.res.t[[i]]
-}
+sapply(unique(sub.list$groups), function(x) 
+  which(sub.list$groups %in% x)) -> groups
+setLimmaRun(sub.list$exprs.mat, groups) -> limma.res.t
 # save(limma.res.t, file="./r.data.files/results/gep/limma_tenomic.rda")
 
 #::: Iqbal limma
@@ -62,60 +59,19 @@ mat[which(rownames(mat) %in% rownames(sub.list$exprs.mat)),] -> mat
 mat -> sub.list.batch1$exprs
 # save(sub.list.batch1, file="./r.data.files/external/sub.list.fin_genes.rda")
 
+load("./r.data.files/external/sub.list.fin_genes.rda")
 dropSamples(sub.list.batch1, which(sub.list.batch1$groups %in% 0)) -> sub.list.batch1
-sapply(unique(sub.list.batch1$groups), function(x) 
-  colnames(sub.list.batch1$exprs)[which(sub.list.batch1$groups %in% x)]) -> groups
-limma.res.i <- list()
-for (i in 1:length(groups)){
-  lab <- rep(0, ncol(sub.list.batch1$exprs))
-  lab[which(colnames(sub.list.batch1$exprs) %in% groups[[i]])] <- 1
-  runLimma(sub.list.batch1$exprs, lab) -> limma.res.i[[i]]
-}
+sapply(unique(sub.list.batch1$groups), function(x) which(sub.list.batch1$groups %in% x)) -> g
+setLimmaRun(sub.list.batch1$exprs, g) -> limma.res.i
 # save(limma.res.i, file="./r.data.files/results/gep/limma_iqbal.rda")
 
-# ::: limma comparison: t-stats
+# ::: limma comparisons
 load("./r.data.files/results/gep/limma_tenomic.rda")
 load("./r.data.files/results/gep/limma_iqbal.rda")
-
-df.sum <- matrix(0, nrow=0, ncol=3)
-colnames(df.sum) <- c("GSE58445", "TENOMIC", "comparison")
-for (i in 1:length(limma.res.i)){
-  # compare t statistics per gene
-  limma.res.i[[i]][order(rownames(limma.res.i[[i]])),] -> iq
-  limma.res.t[[i]][order(rownames(limma.res.t[[i]])),] -> ten
-  cbind(iq$t,ten$t,rep(paste("Subgroup" ,i, "vs. REST", sep=" "), nrow(ten))) -> t
-  colnames(t) <- colnames(df.sum)
-  rbind(df.sum, t) -> df.sum
-}
-as.data.frame(df.sum) -> df.sum
-for (i in 1:2){
-  as.numeric(as.character(df.sum[,i])) -> df.sum[,i]
-}
-ggplot(df.sum, aes(x=TENOMIC, y=GSE58445))+
-  geom_point(size=0.5)+facet_wrap(~comparison)+
-  theme_bw()
-
-# ::: limma comparison: logFC
-load("./r.data.files/results/gep/limma_tenomic.rda")
-load("./r.data.files/results/gep/limma_iqbal.rda")
-df.sum <- matrix(0, nrow=0, ncol=3)
-colnames(df.sum) <- c("GSE58445", "TENOMIC", "comparison")
-for (i in 1:length(limma.res.i)){
-  # compare logFC per gene
-  limma.res.i[[i]][order(rownames(limma.res.i[[i]])),] -> iq
-  limma.res.t[[i]][order(rownames(limma.res.t[[i]])),] -> ten
-  cbind(iq$logFC,ten$logFC,rep(paste("Subgroup" ,i, "vs. REST", sep=" "), nrow(ten))) -> t
-  colnames(t) <- colnames(df.sum)
-  rbind(df.sum, t) -> df.sum
-}
-as.data.frame(df.sum) -> df.sum
-for (i in 1:2){
-  as.numeric(as.character(df.sum[,i])) -> df.sum[,i]
-}
-
-ggplot(df.sum, aes(x=TENOMIC, y=GSE58445))+
-  geom_point(size=0.5)+facet_wrap(~comparison)+
-  theme_bw()
+compareLimmaRes(limma.res.t, limma.res.i, "t") -> comp
+plotComp(comp, "TENOMIC", "GSE58445")
+compareLimmaRes(limma.res.t, limma.res.i, "logFC") -> comp
+plotComp(comp, "TENOMIC", "GSE58445")
 
 # ::: Check 1
 # check group assignments of TENOMIC samples that were included in the Iqbal
