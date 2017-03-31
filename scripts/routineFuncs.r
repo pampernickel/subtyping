@@ -58,11 +58,11 @@ setLimmaRun <- function(mat, g, e=""){
   # would be of the form x vs. rest; alternative mode to follow;
   # e: exclusion list; should be of the same length as g
   if (!is.loaded("limma")) require(limma)
-  lapply(g, function(x){
+  lapply(1:length(g), function(x){
     lab <- rep(0, ncol(mat))
-    lab[x] <- 1
-    if (e %ni% "" && length(g) == length(e)){
-      lab[e] <- NA
+    lab[g[[x]]] <- 1
+    if (e[[x]] %ni% "" && length(g[[x]]) == length(e[[x]])){
+      lab[e[[x]]] <- NA
     } else {
       stop("Exclusion list should have the same length as the group argument.")
     }
