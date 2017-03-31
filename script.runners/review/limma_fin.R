@@ -3,7 +3,7 @@ library(ggplot2)
 
 source('./scripts/routineFuncs.r')
 
-#::: TENOMIC limma
+#::: TENOMIC feature selection (from version mapped to symbols)
 load("./r.data.files/second_proc/sub.list.normalized.adjusted.combat.cov_QC.noSex.mapped.symbol.entrezID.w.groups.Rdata") #161 samples
 cbind(sub.list$tenomic, sub.list$groups) -> group
 
@@ -22,15 +22,7 @@ t(mat) -> mat
 mat -> sub.list$exprs.mat
 # save(sub.list, file="./r.data.files/second_proc/sub.list.fin_genes.rda")
 
-# stick to core samples, perform x vs REST comparison
-load("./r.data.files/second_proc/sub.list.fin_genes.rda")
-dropSamples(sub.list, which(sub.list$groups %in% c(0, NA))) -> sub.list
-sapply(unique(sub.list$groups), function(x) 
-  which(sub.list$groups %in% x)) -> groups
-setLimmaRun(sub.list$exprs.mat, groups) -> limma.res.t
-# save(limma.res.t, file="./r.data.files/results/gep/limma_tenomic.rda")
-
-#::: Iqbal limma
+#::: Iqbal feature selection (from version mapped to symbols)
 load("./r.data.files/external/sub.list.batch1.Rdata")
 load("./r.data.files/external/cores.Iqbal.Rdata")
 sub.list.batch1$groups <- rep(0, ncol(sub.list.batch1$exprs))
@@ -59,13 +51,22 @@ mat[which(rownames(mat) %in% rownames(sub.list$exprs.mat)),] -> mat
 mat -> sub.list.batch1$exprs
 # save(sub.list.batch1, file="./r.data.files/external/sub.list.fin_genes.rda")
 
+# ::: TENOMIC and Iqbal diff expr analyses
+# stick to core samples, perform x vs REST comparison
+load("./r.data.files/second_proc/sub.list.fin_genes.rda")
+dropSamples(sub.list, which(sub.list$groups %in% c(0, NA))) -> sub.list
+sapply(unique(sub.list$groups), function(x) 
+  which(sub.list$groups %in% x)) -> groups
+setLimmaRun(sub.list$exprs.mat, groups) -> limma.res.t
+# save(limma.res.t, file="./r.data.files/results/gep/limma_tenomic.rda")
+
 load("./r.data.files/external/sub.list.fin_genes.rda")
 dropSamples(sub.list.batch1, which(sub.list.batch1$groups %in% 0)) -> sub.list.batch1
 sapply(unique(sub.list.batch1$groups), function(x) which(sub.list.batch1$groups %in% x)) -> g
 setLimmaRun(sub.list.batch1$exprs, g) -> limma.res.i
 # save(limma.res.i, file="./r.data.files/results/gep/limma_iqbal.rda")
 
-# ::: limma comparisons
+# ::: limma res comparisons
 load("./r.data.files/results/gep/limma_tenomic.rda")
 load("./r.data.files/results/gep/limma_iqbal.rda")
 compareLimmaRes(limma.res.t, limma.res.i, "t") -> comp
@@ -83,44 +84,8 @@ ti <- read.csv("./annotations/tenomic_iqbal.csv")
 gsub("TENOMIC", "CRE_TENOMIC_", ti$N..Biobase.TENOMIC..CRE_TENOMIC) -> ti
 unlist(strsplit(ti, " "))[grep("TENOMIC", unlist(strsplit(ti, " ")))] -> tids
 
-# load sub.list with groups
-load("./r.data.files/second_proc/sub.list.fin_genes.rda")
-sub.list$groups[which(sub.list$tenomic %in% tids)]
-table(sub.list$groups[which(sub.list$tenomic %in% tids)])
-
-# perform limma using tenomic samples in iqbal and check if this accounts
-# for the difference in t-stats correl plots
-subSample(sub.list, which(sub.list$tenomic %in% tids)) -> sub.list
-dropSamples(sub.list, which(sub.list$groups %in% 0)) -> sub.list
-
-limma.res.tiq <- list()
-for (i in 1:length(unique(sub.list$groups))){
-  lab <- rep(0, length(sub.list$tenomic))
-  lab[which(sub.list$groups %in% unique(sub.list$groups)[[i]])] <- 1
-  runLimma(sub.list$exprs.mat, lab) -> limma.res.tiq[[i]]
-}
-
-df.sum <- matrix(0, nrow=0, ncol=3)
-colnames(df.sum) <- c("GSE58445", "TENOMIC", "comparison")
-for (i in 1:length(limma.res.i)){
-  limma.res.i[[i]][order(rownames(limma.res.i[[i]])),] -> iq
-  limma.res.tiq[[i]][order(rownames(limma.res.tiq[[i]])),] -> ten
-  cbind(iq$t, ten$t, rep(paste("Subgroup" ,i, "vs. REST", sep=" "), 
-                               nrow(ten))) -> t
-  colnames(t) <- colnames(df.sum)
-  rbind(df.sum, t) -> df.sum
-}
-as.data.frame(df.sum) -> df.sum
-for (i in 1:2){
-  as.numeric(as.character(df.sum[,i])) -> df.sum[,i]
-}
-
-ggplot(df.sum, aes(x=TENOMIC, y=GSE58445))+
-  geom_point(size=0.5)+facet_wrap(~comparison)+
-  theme_bw()
-
 # ::: Check 2
-# iqbal samples in tenomic vs same background as before
+# Iqbal samples in tenomic vs same background as before
 rm(list=ls())
 source('./scripts/routineFuncs.r')
 load("./r.data.files/results/gep/limma_iqbal.rda")
