@@ -94,3 +94,27 @@ plotComp <- function(res, xlab, ylab){
     geom_point(size=0.5)+facet_wrap(~comparison)+
     theme_bw()+xlab(xlab)+ylab(ylab)
 }
+
+# ::: other useful functions for checks
+plotGenes <- function(mat, g, gene, type=c("boxplot", "heatmap")){
+  # plots gene expression across groups
+  # mat: expression matrix
+  # g: groups
+  # gene: list of genes of interest
+  if (!is.loaded("ggplot2")) require(ggplot2)
+  if (!is.loaded("reshape2")) require(reshape2)
+  if (type == "boxplot"){
+    lapply(1:length(g), function(x){
+      t(rbind.data.frame(mat[which(rownames(mat) %in% gene),g[[x]]], 
+                       rep(paste("Group",x,sep="_"), length(g[[x]])))) -> df
+      colnames(df) <- c(gene, "group")
+      melt(data.frame(df), id="group") -> dfl
+    }) -> res
+    do.call("rbind", res) -> res
+    as.numeric(res$value) -> res$value
+    ggplot(res, aes(x=group, y=value))+
+      geom_boxplot()+geom_jitter(width=0.25, outline.shape=NA)+
+      facet_wrap(~variable)+
+      theme_bw()
+  }
+}
