@@ -105,16 +105,15 @@ plotGenes <- function(mat, g, gene, type){
   if (!is.loaded("reshape2")) require(reshape2)
   if (type == "boxplot"){
     lapply(1:length(g), function(x){
-      t(rbind.data.frame(mat[which(rownames(mat) %in% gene),g[[x]]], 
-                       rep(paste("Group",x,sep="_"), length(g[[x]])))) -> df
-      colnames(df) <- c(gene, "group")
-      melt(data.frame(df), id="group") -> dfl
+      melt(mat[which(rownames(mat) %in% gene),g[[x]]]) -> t
+      cbind.data.frame(t, rep(paste("Group",x,sep="_"), nrow(t))) -> df
+      colnames(df) <- c(colnames(df)[1:(ncol(df)-1)], "group")
+      return(df)
     }) -> res
     do.call("rbind", res) -> res
-    as.numeric(res$value) -> res$value
     ggplot(res, aes(x=group, y=value))+
       geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.15, height=0.01, alpha=0.5)+
-      facet_wrap(~variable)+
+      facet_wrap(~Var1)+
       theme_bw()
   } else {
     stop("Visualization type not yet handled.")
