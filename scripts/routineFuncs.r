@@ -113,7 +113,7 @@ plotGenes <- function(mat, g, gene, type){
     do.call("rbind", res) -> res
     as.numeric(res$value) -> res$value
     ggplot(res, aes(x=group, y=value))+
-      geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.15, height=0.01)+
+      geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.15, height=0.01, alpha=0.5)+
       facet_wrap(~variable)+
       theme_bw()
   } else {
