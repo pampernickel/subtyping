@@ -96,7 +96,7 @@ plotComp <- function(res, xlab, ylab){
 }
 
 # ::: other useful functions for checks
-plotGenes <- function(mat, g, gene, type=c("boxplot", "heatmap")){
+plotGenes <- function(mat, g, gene, type){
   # plots gene expression across groups
   # mat: expression matrix
   # g: groups
@@ -113,8 +113,10 @@ plotGenes <- function(mat, g, gene, type=c("boxplot", "heatmap")){
     do.call("rbind", res) -> res
     as.numeric(res$value) -> res$value
     ggplot(res, aes(x=group, y=value))+
-      geom_boxplot()+geom_jitter(width=0.25, outline.shape=NA)+
+      geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.15, height=0.01)+
       facet_wrap(~variable)+
       theme_bw()
+  } else {
+    stop("Visualization type not yet handled.")
   }
 }
