@@ -27,10 +27,7 @@ mat -> sub.list$exprs.mat
 #::: Iqbal feature selection (from version mapped to symbols)
 load("./r.data.files/external/sub.list.batch1.Rdata")
 load("./r.data.files/external/cores.Iqbal.Rdata")
-sub.list.batch1$groups <- rep(0, ncol(sub.list.batch1$exprs))
-for (i in 1:length(cores.Iqbal)){
-  sub.list.batch1$groups[which(colnames(sub.list.batch1$exprs) %in% cores.Iqbal[[i]])] <- i
-}
+sapply(cores.Iqbal, function(x) which(colnames(sub.list.batch1$exprs) %in% x)) -> sub.list.batch1$groups
 
 # map to gene symbol and perform gene selection
 load("./r.data.files/annots/ann_with_symbol.rda")
@@ -105,5 +102,28 @@ compareLimmaRes(limma.res.tiq, limma.res.i, "t") -> comp
 plotComp(comp, "TENOMIC_IN_IQBAL", "GSE58445")
 
 # ::: Check 3
-# check -- by subsampling *within* each group -- which samples are
-# responsible for the shape
+# Quick check with possibility of Iqbal group label switch
+# TBX21 and GATA3 marker expression level checks
+load("./r.data.files/external/sub.list.fin_genes.rda")
+dropSamples(sub.list.batch1, which(sub.list.batch1$groups %in% 0)) -> sub.list.batch1
+sapply(unique(sub.list.batch1$groups), function(x) which(sub.list.batch1$groups %in% x)) -> g
+plotGenes(sub.list.batch1$exprs, 
+          g, c("GATA3", "LEF1", "CCR4", "TNFRSF8", "CXCL12"), 
+          type=c("boxplot", "heatmap"))
+
+plotGenes(sub.list.batch1$exprs, 
+          g, c("GATA3", "LEF1", "CCR4", "TBX21", "CXCL13", "BCL6", "MME", "PDCD1", "ICOS"), 
+          type="boxplot")
+
+load(file="./r.data.files/second_proc/sub.list.fin_genes.rda")
+dropSamples(sub.list, which(sub.list$groups %in% 0)) -> sub.list
+sapply(unique(sub.list$groups), function(x) 
+  which(sub.list$groups %in% x)) -> g
+colnames(sub.list$exprs.mat) <- sub.list$tenomic
+plotGenes(sub.list$exprs.mat, 
+          g, c("GATA3", "LEF1", "CCR4", "TNFRSF8", "CXCL12"), 
+          type="boxplot")
+
+plotGenes(sub.list.batch$exprs, 
+          g, c("GATA3", "LEF1", "CCR4", "TBX21", "CXCL13", "BCL6", "MME", "PDCD1", "ICOS"), 
+          type="boxplot")
