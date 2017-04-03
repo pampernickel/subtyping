@@ -126,11 +126,74 @@ plotGenes <- function(mat, g, gene, type){
     my.colors <- colorRampPalette(colorRampPalette(brewer.pal(11,"RdBu")[-c(4,5,7,8)])(50))
     
     # create RowSide colors based on g
-    col.labs
     heatmap.2(t(t), scale="col", col=my.colors,
               key=TRUE, keysize=0.5, trace="none", 
               sepwidth=0.01, #colsep=1:ncol(assembled), sepcolor='white',
               margins = c(10,10),
               cexRow=1,cexCol=1)
   }
+}
+
+
+# ::: create binarized heatmap
+binarizeMarkers <- function(df, groups, sampleNames, markers, sdFactor){
+  if (!is.loaded("gplots")) require(gplots)
+  sapply(markers$marker, function(x) 
+    which(rownames(df) %in% x)) -> rord
+  df[rord,] -> df
+  
+  # currently hard-coded
+  color.hash <- cbind(c(1:4), c("red", "cyan", "magenta", "blue"))
+  colnames(color.hash) <- c("group", "color")
+  col.colors <- rep(NA, ncol(df))
+  for (i in 1:4){
+    col.colors[which(groups %in% i)] <- color.hash[which(color.hash[,1] %in% i),2]
+  }
+  
+  row.colors <- rep(NA, nrow(df))
+  for (i in 1:4){
+    row.colors[which(markers$group %in% i)] <- color.hash[which(color.hash[,1] %in% i),2]
+  }
+  
+  # binarization; currently uses the median as the baseline limit
+  # for binarization; the restriction can be adjusted with respect to the
+  # sd in a vector
+  factor <- sdFactor
+  apply(df, 1, function(x)
+    median(x)+factor*sd(x)) -> medx
+  
+  df.bin <- matrix(0, nrow=nrow(df), ncol=ncol(df))
+  for (i in 1:nrow(df)){
+    df.bin[i,which(df[i,] > medx[i])] <- 1
+  }
+  colnames(df.bin) <- sampleNames
+  rownames(df.bin) <- rownames(df)
+  
+  # then within each group, order acc. to highest expression of markers
+  fin.ord <- c()
+  for (i in 1:4){
+    df.bin[which(rownames(df.bin) %in% 
+                   markers$marker[which(markers$group %in% i)]),
+           which(groups %in% i)] -> x
+    colSums(x) -> s
+    colnames(x)[order(s)] -> n.ord
+    c(fin.ord, n.ord) -> fin.ord
+  }
+  
+  as.numeric(sapply(fin.ord, function(x) 
+    which(colnames(df.bin) %in% x))) -> fin.ord
+  df.bin[,fin.ord] -> df.bin
+  
+  heatmap.2(df.bin, dendrogram="none", Rowv=F, Colv=F,
+            trace="none", col=c("grey95", "grey50"),
+            ColSideColors=col.colors,
+            RowSideColors=row.colors,
+            labCol="", cexRow=1.5, margin=c(7,7),
+            colsep=getChangePoint(as.numeric(as.factor(col.colors))), 
+            rowsep=getChangePoint(as.numeric(as.factor(row.colors))), sepcolor = "grey12")
+}
+
+getChangePoint <- function(d) {
+  p <- cumsum(rle(d)$lengths)
+  p[-length(p)]
 }
