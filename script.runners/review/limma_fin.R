@@ -27,7 +27,8 @@ mat -> sub.list$exprs.mat
 #::: Iqbal feature selection (from version mapped to symbols)
 load("./r.data.files/external/sub.list.batch1.Rdata")
 load("./r.data.files/external/cores.Iqbal.Rdata")
-sapply(cores.Iqbal, function(x) which(colnames(sub.list.batch1$exprs) %in% x)) -> sub.list.batch1$groups
+sapply(cores.Iqbal, function(x) 
+  which(colnames(sub.list.batch1$exprs) %in% x)) -> sub.list.batch1$groups
 
 # map to gene symbol and perform gene selection
 load("./r.data.files/annots/ann_with_symbol.rda")
@@ -54,16 +55,16 @@ mat -> sub.list.batch1$exprs
 # stick to core samples, perform x vs REST comparison
 load("./r.data.files/second_proc/sub.list.fin_genes.rda")
 dropSamples(sub.list, which(sub.list$groups %in% c(0, NA))) -> sub.list
-sapply(unique(sub.list$groups), function(x) 
+sapply(1:4, function(x) 
   which(sub.list$groups %in% x)) -> groups
 setLimmaRun(sub.list$exprs.mat, groups) -> limma.res.t
-# save(limma.res.t, file="./r.data.files/results/gep/limma_tenomic.rda")
+save(limma.res.t, file="./r.data.files/results/gep/limma_tenomic.rda")
 
 load("./r.data.files/external/sub.list.fin_genes.rda")
 dropSamples(sub.list.batch1, which(sub.list.batch1$groups %in% 0)) -> sub.list.batch1
-sapply(unique(sub.list.batch1$groups), function(x) which(sub.list.batch1$groups %in% x)) -> g
+sapply(1:4, function(x) which(sub.list.batch1$groups %in% x)) -> g
 setLimmaRun(sub.list.batch1$exprs, g) -> limma.res.i
-# save(limma.res.i, file="./r.data.files/results/gep/limma_iqbal.rda")
+save(limma.res.i, file="./r.data.files/results/gep/limma_iqbal.rda")
 
 # ::: limma res comparisons
 load("./r.data.files/results/gep/limma_tenomic.rda")
@@ -111,10 +112,6 @@ plotGenes(sub.list.batch1$exprs,
           g, c("GATA3", "LEF1", "CCR4", "TNFRSF8", "CXCL12"), 
           type=c("boxplot", "heatmap"))
 
-plotGenes(sub.list.batch1$exprs, 
-          g, c("GATA3", "LEF1", "CCR4", "TBX21", "CXCL13", "BCL6", "MME", "PDCD1", "ICOS"), 
-          type="boxplot")
-
 load(file="./r.data.files/second_proc/sub.list.fin_genes.rda")
 dropSamples(sub.list, which(sub.list$groups %in% 0)) -> sub.list
 sapply(unique(sub.list$groups), function(x) 
@@ -122,8 +119,4 @@ sapply(unique(sub.list$groups), function(x)
 colnames(sub.list$exprs.mat) <- sub.list$tenomic
 plotGenes(sub.list$exprs.mat, 
           g, c("GATA3", "LEF1", "CCR4", "TNFRSF8", "CXCL12"), 
-          type="boxplot")
-
-plotGenes(sub.list.batch$exprs, 
-          g, c("GATA3", "LEF1", "CCR4", "TBX21", "CXCL13", "BCL6", "MME", "PDCD1", "ICOS"), 
           type="boxplot")
