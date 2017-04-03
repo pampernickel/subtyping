@@ -92,7 +92,10 @@ plotComp <- function(res, xlab, ylab){
   if (!is.loaded("ggplot2")) require(ggplot2)
   ggplot(res, aes(x=V1, y=V2))+
     geom_point(size=0.5)+facet_wrap(~comparison)+
-    theme_bw()+xlab(xlab)+ylab(ylab)
+    theme_bw()+xlab(xlab)+ylab(ylab)+
+    theme(axis.title = element_text(size=18),
+          axis.text=element_text(size=16),
+          strip.text=element_text(size=17))
 }
 
 # ::: other useful functions for checks
@@ -103,6 +106,9 @@ plotGenes <- function(mat, g, gene, type){
   # gene: list of genes of interest
   if (!is.loaded("ggplot2")) require(ggplot2)
   if (!is.loaded("reshape2")) require(reshape2)
+  if (!is.loaded("gplots")) require(gplots)
+  if (!is.loaded("RColorBrewer")) require(RColorBrewer)
+  
   if (type == "boxplot"){
     lapply(1:length(g), function(x){
       melt(mat[which(rownames(mat) %in% gene),g[[x]]]) -> t
@@ -115,7 +121,16 @@ plotGenes <- function(mat, g, gene, type){
       geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.15, height=0.01, alpha=0.5)+
       facet_wrap(~Var1)+
       theme_bw()
-  } else {
-    stop("Visualization type not yet handled.")
+  } else if (type == heatmap){
+    mat[which(rownames(mat) %in% gene),] -> t
+    my.colors <- colorRampPalette(colorRampPalette(brewer.pal(11,"RdBu")[-c(4,5,7,8)])(50))
+    
+    # create RowSide colors based on g
+    col.labs
+    heatmap.2(t(t), scale="col", col=my.colors,
+              key=TRUE, keysize=0.5, trace="none", 
+              sepwidth=0.01, #colsep=1:ncol(assembled), sepcolor='white',
+              margins = c(10,10),
+              cexRow=1,cexCol=1)
   }
 }
