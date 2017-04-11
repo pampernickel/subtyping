@@ -197,3 +197,44 @@ getChangePoint <- function(d) {
   p <- cumsum(rle(d)$lengths)
   p[-length(p)]
 }
+
+# ::: functions for enrichment analyses
+runRomer <- function(df, labs, gene.sets){
+  # --- params: MsigDB signature set, iset, sub.list, vector for generating design matrix
+  ff <- rep(0,ncol(df))
+  ff[which(labs %in% 1)] <- 1
+  design <- cbind(Intercept=1,Group=labs)
+  
+  # index: list corresponding to the rows of the gene sets
+  lapply(gene.sets, function(x) 
+    ids2indices(x, rownames(df))) -> indices
+  
+  # select signatures of interest: 
+  rr <- list()
+  for (i in 1:length(gene.sets)){
+    print(i)
+    romer(y=df, index=indices[[i]], design=design, set.statistic = "mean", 
+          nrot=50000) -> rr[[i]]
+  }
+  
+  lapply(rr, function(x) 
+    x[setdiff(c(which(x[,2] <= 0.05),
+                which(x[,3] <= 0.05)), which(x[,4] <= 0.05)),]) -> rr.sub
+  list(rr, rr.sub) -> res
+  names(res) <- c("all", "sub")
+  return(res)
+}
+
+createGeneSets <- function(dir){
+  # specify directory from which to create gene sets; this function version has been
+  # designed to handle MSigDB signatures
+  list.files(dir, full.names = T)[grep(".txt", list.files(dir, full.names = T))] -> f
+  lapply(f, function(x){
+    readLines(x) -> ff
+    lapply(ff, function(x) unlist(strsplit(x, "\t"), recursive=F)) -> ff
+    lapply(ff, function(x) x[1]) -> names(ff)
+    lapply(ff, function(x) x[-c(1:2)]) -> names(ff)
+  }) -> gene.sets
+  sapply(strsplit(f, "\\/"), function(x) x[length(x)]) -> names(gene.sets)
+  return(gene.sets)
+}
