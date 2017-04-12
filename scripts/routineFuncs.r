@@ -238,3 +238,59 @@ createGeneSets <- function(dir){
   sapply(strsplit(f, "\\/"), function(x) x[length(x)]) -> names(gene.sets)
   return(gene.sets)
 }
+
+barPlot <- function(df, genes, labs, mode){
+  # create a bar plot based on the mean or median expression of 
+  # a list of gene sets
+  if (is.list(genes)){
+    lapply(genes, function(x){
+      lapply(unique(labs), function(y){
+        df[which(rownames(df) %in% x),which(labs %in% y)] -> df.sub
+        res <- NA
+        if (mode %in% "mean"){
+          cbind.data.frame(rowMeans(df.sub), rep(y, nrow(df.sub))) -> res
+          colnames(res) <- c("m", "l")
+        } else if (mode %in% "median"){
+          cbind.data.frame(apply(df.sub, 1, median),rep(y, nrow(df.sub))) -> res
+          colnames(res) <- c("m", "l")
+        }
+        return(res)
+      }) -> res
+      do.call("rbind.data.frame", res) -> res
+      return(res)
+    }) -> res
+  } else if (is.character(genes)){
+    lapply(unique(labs), function(y){
+      df[which(rownames(df) %in% genes),which(labs %in% y)] -> df.sub
+      if (mode %in% "mean"){
+        cbind.data.frame(rowMeans(df.sub), rep(y, nrow(df.sub))) -> res
+        colnames(res) <- c("m", "l")
+      } else if (mode %in% "median"){
+        cbind.data.frame(apply(df.sub, 1, median),rep(y, nrow(df.sub))) -> res
+        colnames(res) <- c("m", "l")
+      }
+      return(res)
+    }) -> res
+    do.call("rbind.data.frame", res) -> res
+  }
+  return(res)
+}
+
+sigPlot <- function(df, genes, labs, mode=c("mean", "median")){
+  if (!is.loaded("ggplot2")) require(ggplot2)
+  barPlot(df, genes, labs, mode) -> bp
+  lapply(1:length(bp), function(x){ 
+    cbind.data.frame(bp[[x]], rep(names(genes)[x], nrow(bp[[x]]))) -> r
+    colnames(r) <- c(colnames(bp[[x]]), "s")
+    return(r)
+  }) -> res
+  do.call("rbind.data.frame", res) -> res
+  as.factor(res$l) -> res$l
+  ggplot(res, aes(x=l, y=m))+
+    geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.05, height=0.05, alpha=0.5)+
+    facet_wrap(~s)+xlab("Group")+ylab(paste(mode, "expression",sep=" "))+
+    theme_bw()+
+    theme(axis.title = element_text(size=18),
+          axis.text=element_text(size=16),
+          strip.text=element_text(size=17))
+}
