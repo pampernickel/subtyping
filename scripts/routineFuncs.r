@@ -142,7 +142,7 @@ binarizeMarkers <- function(df, groups, sampleNames, markers, sdFactor){
     which(rownames(df) %in% x)) -> rord
   df[rord,] -> df
   
-  # currently hard-coded
+  # currently hard-coded  
   color.hash <- cbind(c(1:4), c("red", "cyan", "magenta", "blue"))
   colnames(color.hash) <- c("group", "color")
   col.colors <- rep(NA, ncol(df))
@@ -289,6 +289,35 @@ sigPlot <- function(df, genes, labs, mode=c("mean", "median")){
   ggplot(res, aes(x=l, y=m))+
     geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.05, height=0.05, alpha=0.5)+
     facet_wrap(~s)+xlab("Group")+ylab(paste(mode, "expression",sep=" "))+
+    theme_bw()+
+    theme(axis.title = element_text(size=18),
+          axis.text=element_text(size=16),
+          strip.text=element_text(size=17))
+}
+
+boxPlot <- function(df, genes, labs){
+  # create boxplot of multiple genes
+  lapply(genes, function(x){
+    lapply(unique(labs), function(y){
+      t(rbind(df[which(rownames(df) %in% x), which(labs %in% y)], 
+              rep(y, length(which(labs %in% y))))) -> temp
+    }) -> temp
+    do.call("rbind", temp) -> temps
+    cbind(rep(x, nrow(temps)), temps) -> temp
+    colnames(temp) <- c("genes", "exp.level", "group")
+    return(temp)
+  }) -> res
+  do.call("rbind.data.frame", res) -> res
+  as.numeric(as.character(res$exp.level)) -> res$exp.level
+  
+  # then check if expression levels are counts or not
+  if (range(res$exp.level)[2]-range(res$exp.level)[1] > 100){
+    log2(res$exp.level+1) -> res$exp.level
+  }
+  
+  ggplot(res, aes(x=group, y=exp.level))+
+    geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.05, height=0.05, alpha=0.5)+
+    facet_wrap(~genes)+xlab("Group")+ylab("log2 expression level")+
     theme_bw()+
     theme(axis.title = element_text(size=18),
           axis.text=element_text(size=16),
