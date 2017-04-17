@@ -206,8 +206,17 @@ runRomer <- function(df, labs, gene.sets, rots){
   design <- cbind(Intercept=1,Group=labs)
   
   # index: list corresponding to the rows of the gene sets
-  lapply(gene.sets, function(x) 
-    ids2indices(x, rownames(df))) -> indices
+  # adapt if gene.sets is a list of lists or not
+  if (is.list(gene.sets[[1]])){
+    lapply(gene.sets, function(x) 
+      ids2indices(x, rownames(df))) -> indices
+  } else (is.character(gene.sets[[1]]) |
+          is.numeric(gene.sets[[1]])){
+    list(gene.sets) -> gene.sets
+    names(gene.sets) <- "GS1"
+    lapply(gene.sets, function(x) 
+      as.numeric(unlist(ids2indices(x, rownames(df))))) -> indices
+  }
   
   # select signatures of interest: 
   rr <- list()
