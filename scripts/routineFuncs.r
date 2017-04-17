@@ -210,8 +210,7 @@ runRomer <- function(df, labs, gene.sets, rots){
   if (is.list(gene.sets[[1]])){
     lapply(gene.sets, function(x) 
       ids2indices(x, rownames(df))) -> indices
-  } else (is.character(gene.sets[[1]]) |
-          is.numeric(gene.sets[[1]])){
+  } else if (is.character(gene.sets[[1]]) || is.numeric(gene.sets[[1]])){
     list(gene.sets) -> gene.sets
     names(gene.sets) <- "GS1"
     lapply(gene.sets, function(x) 
