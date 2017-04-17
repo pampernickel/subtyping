@@ -336,7 +336,31 @@ createHeatmap <- function(df, labs, gene.sets, metric=c("cor", "t")){
   # create a heatmap based on contents of a list "gene.sets"
   # where the order of the samples and genes are held constant
   # based on the labels and gene sets
+  if (!is.loaded("gplots")) library(gplots)
+  if (!is.loaded("RColorBrewer")) library(RColorBrewer)
+  
   getLeadingEdge(df, labs, gene.sets, metric) -> le
+  unique(unlist(le)) -> all.genes
+  df[which(rownames(df) %in% all.genes),] -> df
+  
+  # color by pathway
+  color.sig <- data.frame(names(gene.sets), color=brewer.pal(length(names(gene.sets)), "Spectral"))
+  as.character(sapply(rownames(df), function(x)
+    names(gene.sets)[which(sapply(gene.sets, function(y) ifelse(x %in% y, T, F)) %in% T)[1]])) -> sig.a
+  as.character(merge(as.data.frame(sig.a), color.sig, by.x="sig.a", by.y="names.gene.sets.")[,2]) -> row.colors
+  
+  col.colors <- rep(NA, ncol(df))
+  r.color.sig <- brewer.pal(length(unique(labs)), "Paired")
+  for (i in 1:length(unique(labs))){
+    col.colors[which(labs %in% unique(labs)[i])] <- r.color.sig[i]
+  }
+  
+  my.colors <- colorRampPalette(colorRampPalette(brewer.pal(11,"RdBu")[-c(4,5,7,8)])(25))
+  heatmap.2(as.matrix(df), dendrogram="none", Rowv=F, Colv=F,
+            trace="none", col=my.colors(50)[50:1],
+            ColSideColors=col.colors,
+            RowSideColors=row.colors,cexRow=1.5, margin=c(7,7),
+            scale="row")
 }
 
 getLeadingEdge <- function(df, labs, gene.sets, metric){
