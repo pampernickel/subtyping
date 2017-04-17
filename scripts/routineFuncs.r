@@ -199,7 +199,7 @@ getChangePoint <- function(d) {
 }
 
 # ::: functions for enrichment analyses
-runRomer <- function(df, labs, gene.sets){
+runRomer <- function(df, labs, gene.sets, rots){
   # --- params: MsigDB signature set, iset, sub.list, vector for generating design matrix
   ff <- rep(0,ncol(df))
   ff[which(labs %in% 1)] <- 1
@@ -214,7 +214,7 @@ runRomer <- function(df, labs, gene.sets){
   for (i in 1:length(gene.sets)){
     print(i)
     romer(y=df, index=indices[[i]], design=design, set.statistic = "mean", 
-          nrot=50000) -> rr[[i]]
+          nrot=rots) -> rr[[i]]
   }
   
   lapply(rr, function(x) 
