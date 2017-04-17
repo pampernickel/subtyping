@@ -331,3 +331,31 @@ boxPlot <- function(df, genes, labs){
           axis.text=element_text(size=16),
           strip.text=element_text(size=17))
 }
+
+createHeatmap <- function(df, labs, gene.sets, metric=c("cor", "t")){
+  # create a heatmap based on contents of a list "gene.sets"
+  # where the order of the samples and genes are held constant
+  # based on the labels and gene sets
+  getLeadingEdge(df, labs, gene.sets, metric) -> le
+}
+
+getLeadingEdge <- function(df, labs, gene.sets, metric){
+  # use either a simple test (cor/t) to approximate a leading edge
+  # function (in the absence of gene ranks as in standard gsea)
+  lapply(gene.sets, function(x){
+    le <- list()
+    apply(df[which(rownames(df) %in% x),], 1, function(y){
+      res <- NA
+      if (var(as.numeric(y)) > 0 && metric == "t"){
+        t.test(as.numeric(y[which(labs %in% 0)]), 
+               as.numeric(y[which(labs %in% 1)]))$p.value -> res
+      } else if (var(as.numeric(y)) > 0 && metric == "cor"){
+        cor.test(as.numeric(y), labs, method="s")$p.value -> res
+      }
+      return(res)
+    }) -> res
+    names(res)[which(res <= 0.05)]  -> le
+    return(le)
+  }) -> le
+  return(le)
+}
