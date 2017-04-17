@@ -214,7 +214,7 @@ runRomer <- function(df, labs, gene.sets, rots){
     list(gene.sets) -> gene.sets
     names(gene.sets) <- "GS1"
     lapply(gene.sets, function(x) 
-      as.numeric(unlist(ids2indices(x, rownames(df))))) -> indices
+      ids2indices(x, rownames(df))) -> indices
   }
   
   # select signatures of interest: 
