@@ -284,23 +284,49 @@ barPlot <- function(df, genes, labs, mode){
   return(res)
 }
 
-sigPlot <- function(df, genes, labs, mode=c("mean", "median")){
+sigPlot <- function(df, genes, labs, mode=c("mean", "median"), by=c("gene", "sample")){
   if (!is.loaded("ggplot2")) require(ggplot2)
-  barPlot(df, genes, labs, mode) -> bp
-  lapply(1:length(bp), function(x){ 
-    cbind.data.frame(bp[[x]], rep(names(genes)[x], nrow(bp[[x]]))) -> r
-    colnames(r) <- c(colnames(bp[[x]]), "s")
-    return(r)
-  }) -> res
-  do.call("rbind.data.frame", res) -> res
-  as.factor(res$l) -> res$l
-  ggplot(res, aes(x=l, y=m))+
-    geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.05, height=0.05, alpha=0.5)+
-    facet_wrap(~s)+xlab("Group")+ylab(paste(mode, "expression",sep=" "))+
-    theme_bw()+
-    theme(axis.title = element_text(size=18),
-          axis.text=element_text(size=16),
-          strip.text=element_text(size=17))
+  if (by == "gene"){
+    # plot the median value for each gene across samples with the same label
+    barPlot(df, genes, labs, mode) -> bp
+    lapply(1:length(bp), function(x){ 
+      cbind.data.frame(bp[[x]], rep(names(genes)[x], nrow(bp[[x]]))) -> r
+      colnames(r) <- c(colnames(bp[[x]]), "s")
+      return(r)
+    }) -> res
+    do.call("rbind.data.frame", res) -> res
+    as.factor(res$l) -> res$l
+    ggplot(res, aes(x=l, y=m))+
+      geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.05, height=0.05, alpha=0.5)+
+      facet_wrap(~s)+xlab("Group")+ylab(paste(mode, "expression",sep=" "))+
+      theme_bw()+
+      theme(axis.title = element_text(size=18),
+            axis.text=element_text(size=16),
+            strip.text=element_text(size=17))
+  } else if (by == "sample"){
+    # plot the median value of each signature per sample, then
+    # group the samples by label
+    lapply(1:length(genes), function(x){
+      df[which(rownames(df) %in% genes[[x]]),] -> sub
+      if (mode == "mean"){
+        cbind(colMeans(sub), labs, rep(names(genes)[x], length(labs))) -> res
+      } else {
+        cbind(apply(sub, 2, function(y) median(y)), labs, rep(names(genes)[x], length(labs))) -> res
+      }
+      colnames(res) <- c("expression", "lab", "signature")
+      return(res)
+    }) -> res
+    do.call("rbind.data.frame", res) -> res
+    as.factor(res$lab) -> res$lab
+    as.numeric(as.character(res$expression)) -> res$expression
+    ggplot(res, aes(x=lab, y=expression))+
+      geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.05, height=0.05, alpha=0.5)+
+      facet_wrap(~signature)+xlab("Group")+ylab(paste(mode, "expression",sep=" "))+
+      theme_bw()+
+      theme(axis.title = element_text(size=18),
+            axis.text=element_text(size=16),
+            strip.text=element_text(size=17))
+  }
 }
 
 boxPlot <- function(df, genes, labs){
