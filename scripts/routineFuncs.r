@@ -201,6 +201,8 @@ getChangePoint <- function(d) {
 # ::: functions for enrichment analyses
 runRomer <- function(df, labs, gene.sets, rots){
   # --- params: MsigDB signature set, iset, sub.list, vector for generating design matrix
+  if (!is.loaded("limma")) library(limma)
+  if (!is.loaded("parallel")) library(parallel)
   ff <- rep(0,ncol(df))
   ff[which(labs %in% 1)] <- 1
   design <- cbind(Intercept=1,Group=labs)
@@ -218,12 +220,9 @@ runRomer <- function(df, labs, gene.sets, rots){
   }
   
   # select signatures of interest: 
-  rr <- list()
-  for (i in 1:length(gene.sets)){
-    print(i)
-    romer(y=df, index=indices[[i]], design=design, set.statistic = "mean", 
-          nrot=rots) -> rr[[i]]
-  }
+  mclapply(indices, function(x)
+    romer(y=df, index=x, design=design, set.statistic = "mean", 
+          nrot=rots), mc.cores=detectCores()-1) -> rr
   
   lapply(rr, function(x) 
     x[setdiff(c(which(x[,2] <= 0.05),
