@@ -316,22 +316,37 @@ sigPlot <- function(df, genes, labs, mode=c("mean", "median"), by=c("gene", "sam
   }
 }
 
-sigExpression <- function(df, genes, labs, mode){
+sigExpression <- function(df, genes, labs, mode, by="sample"){
   # returns mean or median expression of gene set per sample
   # in long format
   lapply(1:length(genes), function(x){
     df[which(rownames(df) %in% genes[[x]]),] -> sub
-    if (length(sub) > length(labs)){
-      if (mode == "mean"){
-        cbind(labs, rep(names(genes)[x], length(labs)), colMeans(sub)) -> res
+    if (by %in% "sample"){
+      if (length(sub) > length(labs)){
+        if (mode == "mean"){
+          cbind(labs, rep(names(genes)[x], length(labs)), colMeans(sub)) -> res
+        } else {
+          cbind(labs, rep(names(genes)[x], length(labs)), 
+                apply(sub, 2, function(y) median(y))) -> res
+        }
+        colnames(res) <- c("lab", "signature", "expression")
       } else {
-        cbind(labs, rep(names(genes)[x], length(labs)), 
-              apply(sub, 2, function(y) median(y))) -> res
+        cbind(labs, rep(names(genes)[x], length(labs)), sub) -> res
+        colnames(res) <- c("lab", "signature", "expression")
       }
-      colnames(res) <- c("lab", "signature", "expression")
     } else {
-      cbind(labs, rep(names(genes)[x], length(labs)), sub) -> res
-      colnames(res) <- c("lab", "signature", "expression")
+      # summarize results for each label into a single value
+      if (mode == "mean"){
+        sapply(unique(labs), function(x) 
+          median(apply(sub[,which(labs %in% unique(labs)[x])], 2, function(y) median(y)))) -> smed
+        cbind(unique(labs), smed, names(genes)[x]) -> res
+        colnames(res) <- c("lab", "signature", "expression")
+      } else {
+        sapply(unique(labs), function(x) 
+          mean(apply(sub[,which(labs %in% unique(labs)[x])], 2, function(y) mean(y)))) -> smed
+        cbind(unique(labs), smed, names(genes)[x]) -> res
+        colnames(res) <- c("lab", "signature", "expression")
+      }
     }
     return(res)
   }) -> res
