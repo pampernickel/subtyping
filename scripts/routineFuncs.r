@@ -340,7 +340,7 @@ sigExpression <- function(df, genes, labs, mode, by="sample"){
         if (mode == "mean"){
           sapply(unique(labs), function(x) 
             median(apply(sub[,which(labs %in% unique(labs)[x])], 2, function(y) median(y)))) -> smed
-          cbind(unique(labs), smed, names(genes)[z]) -> res
+          cbind(unique(labs), names(genes)[z], smed) -> res
           colnames(res) <- c("lab", "signature", "expression")
         } else {
           sapply(unique(labs), function(x) 
