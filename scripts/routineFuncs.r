@@ -345,7 +345,7 @@ sigExpression <- function(df, genes, labs, mode, by="sample"){
         } else {
           sapply(unique(labs), function(x) 
             mean(apply(sub[,which(labs %in% unique(labs)[x])], 2, function(y) mean(y)))) -> smed
-          cbind(unique(labs), smed, names(genes)[z]) -> res
+          cbind(unique(labs), names(genes)[z], smed) -> res
           colnames(res) <- c("lab", "signature", "expression")
         }
       } else {
@@ -354,7 +354,7 @@ sigExpression <- function(df, genes, labs, mode, by="sample"){
         } else {
           sapply(unique(labs), function(x) mean(sub[which(labs %in% unique(labs)[x])])) -> res
         }
-        cbind(unique(labs), smed, names(genes)[z]) -> res
+        cbind(unique(labs), names(genes)[z], smed) -> res
         colnames(res) <- c("lab", "signature", "expression")
       }
     }
