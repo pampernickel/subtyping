@@ -305,19 +305,7 @@ sigPlot <- function(df, genes, labs, mode=c("mean", "median"), by=c("gene", "sam
   } else if (by == "sample"){
     # plot the median value of each signature per sample, then
     # group the samples by label
-    lapply(1:length(genes), function(x){
-      df[which(rownames(df) %in% genes[[x]]),] -> sub
-      if (mode == "mean"){
-        cbind(colMeans(sub), labs, rep(names(genes)[x], length(labs))) -> res
-      } else {
-        cbind(apply(sub, 2, function(y) median(y)), labs, rep(names(genes)[x], length(labs))) -> res
-      }
-      colnames(res) <- c("expression", "lab", "signature")
-      return(res)
-    }) -> res
-    do.call("rbind.data.frame", res) -> res
-    as.factor(res$lab) -> res$lab
-    as.numeric(as.character(res$expression)) -> res$expression
+    sigExpression(df, genes, labs, mode) -> res
     ggplot(res, aes(x=lab, y=expression))+
       geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.05, height=0.05, alpha=0.5)+
       facet_wrap(~signature)+xlab("Group")+ylab(paste(mode, "expression",sep=" "))+
@@ -326,6 +314,31 @@ sigPlot <- function(df, genes, labs, mode=c("mean", "median"), by=c("gene", "sam
             axis.text=element_text(size=16),
             strip.text=element_text(size=17))
   }
+}
+
+sigExpression <- function(df, genes, labs, mode){
+  # returns mean or median expression of gene set per sample
+  # in long format
+  lapply(1:length(genes), function(x){
+    df[which(rownames(df) %in% genes[[x]]),] -> sub
+    if (length(sub) > length(labs)){
+      if (mode == "mean"){
+        cbind(labs, rep(names(genes)[x], length(labs)), colMeans(sub)) -> res
+      } else {
+        cbind(labs, rep(names(genes)[x], length(labs)), 
+              apply(sub, 2, function(y) median(y))) -> res
+      }
+      colnames(res) <- c("lab", "signature", "expression")
+    } else {
+      cbind(labs, rep(names(genes)[x], length(labs)), sub) -> res
+      colnames(res) <- c("lab", "signature", "expression")
+    }
+    return(res)
+  }) -> res
+  do.call("rbind.data.frame", res) -> res
+  as.factor(res$lab) -> res$lab
+  as.numeric(as.character(res$expression)) -> res$expression
+  return(res)
 }
 
 boxPlot <- function(df, genes, labs){
