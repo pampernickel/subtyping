@@ -19,6 +19,22 @@ dropSamples <- function(list, ind){
   return(list)
 }
 
+subSample <- function(list, ind){
+  if (length(ind)==0){
+    stop("0 length index. No changes made to your list.", call.=FALSE)
+  }
+  
+  # --- for each list element, remove the indicated index
+  for (i in 1:length(list)){
+    if (is.matrix(list[[i]])){
+      list[[i]][,ind] -> list[[i]]
+    } else {
+      list[[i]][ind] -> list[[i]]
+    }
+  }
+  return(list)
+}
+
 orderBy <- function(list, by=c("exprs.mat", "tenomic", "affy.no", "sorted", "hybrid.date", "tet2", "idh", "dnmt", "tfh.stat", "perc.tumor", "cell.type", "pathos", "centre","subgroup","class","hybrid.date.corrected")){
   vect <- list[[which(names(list) %in% by)]]
   #print(vect)
@@ -193,6 +209,17 @@ binarizeMarkers <- function(df, groups, sampleNames, markers, sdFactor){
             rowsep=getChangePoint(as.numeric(as.factor(row.colors))), sepcolor = "grey12")
 }
 
+# ::: heatamp label creation
+createColLabs <- function(labs, groups){
+  color.hash <- cbind(c(1:4), c("red", "cyan", "magenta", "blue"))
+  colnames(color.hash) <- c("group", "color")
+  col.colors <- rep(NA, ncol(df))
+  for (i in 1:4){
+    col.colors[which(groups %in% i)] <- color.hash[which(color.hash[,1] %in% i),2]
+  }
+  return(col.colors)
+}
+
 getChangePoint <- function(d) {
   p <- cumsum(rle(d)$lengths)
   p[-length(p)]
@@ -244,6 +271,35 @@ createGeneSets <- function(dir){
   }) -> gene.sets
   sapply(strsplit(f, "\\/"), function(x) x[length(x)]) -> names(gene.sets)
   return(gene.sets)
+}
+
+createGSEAset <- function(gene.list, format=c("on-the-fly", "gmt")){
+  # from a gene list, create a gene set compatible with the standalone
+  # GSEA program; file is a .gmt file; change extension manually
+  if (format == "gmt"){
+    # has some issues
+    max(sapply(gene.list, function(x) length(unique(x)))) -> ml
+    df <- matrix("", nrow=ml, ncol=length(gene.list))
+    colnames(df) <- names(gene.list)
+    for (i in 1:length(gene.list)){
+      df[1:length(unique(gene.list[[i]])),i] <- unique(gene.list[[i]])
+    }
+  } else {
+    # for pasting on the `on-the-fly' gene set option
+    file.create("./signatures/gene.list.txt")
+    sink("./signatures/gene.list.txt")
+    for (x in 1:length(gene.list)){
+      cat(paste(toupper(names(gene.list)[x]), "\n", sep=""))
+      for (i in 1:length(gene.list[[x]])){
+        cat(paste(gene.list[[x]][i], "\n", sep=""))
+      }
+    }
+    sink()
+  }
+  
+  
+  print("Writing output to signatures/gene_list.csv")
+  # write.csv(as.data.frame(df[,1:10]), file="./signatures/gene_list.csv")
 }
 
 barPlot <- function(df, genes, labs, mode){
@@ -305,7 +361,7 @@ sigPlot <- function(df, genes, labs, mode=c("mean", "median"), by=c("gene", "sam
   } else if (by == "sample"){
     # plot the median value of each signature per sample, then
     # group the samples by label
-    sigExpression(df, genes, labs, mode) -> res
+    sigExpression(df, genes, labs, mode, by="sample") -> res
     ggplot(res, aes(x=lab, y=expression))+
       geom_boxplot(outlier.shape=NA)+geom_jitter(width=0.05, height=0.05, alpha=0.5)+
       facet_wrap(~signature)+xlab("Group")+ylab(paste(mode, "expression",sep=" "))+
@@ -316,7 +372,7 @@ sigPlot <- function(df, genes, labs, mode=c("mean", "median"), by=c("gene", "sam
   }
 }
 
-sigExpression <- function(df, genes, labs, mode, by="sample"){
+sigExpression <- function(df, genes, labs, mode, by){
   # returns mean or median expression of gene set per sample
   # in long format
   lapply(1:length(genes), function(z){
@@ -427,22 +483,104 @@ createHeatmap <- function(df, labs, gene.sets, metric=c("cor", "t")){
 }
 
 getLeadingEdge <- function(df, labs, gene.sets, metric){
-  # use either a simple test (cor/t) to approximate a leading edge
-  # function (in the absence of gene ranks as in standard gsea)
-  lapply(gene.sets, function(x){
-    le <- list()
-    apply(df[which(rownames(df) %in% x),], 1, function(y){
-      res <- NA
-      if (var(as.numeric(y)) > 0 && metric == "t"){
-        t.test(as.numeric(y[which(labs %in% 0)]), 
-               as.numeric(y[which(labs %in% 1)]))$p.value -> res
-      } else if (var(as.numeric(y)) > 0 && metric == "cor"){
-        cor.test(as.numeric(y), labs, method="s")$p.value -> res
-      }
-      return(res)
-    }) -> res
-    names(res)[which(res <= 0.05)]  -> le
-    return(le)
-  }) -> le
+  # use either a simple test (cor/t/ranks) to approximate a leading edge
+  # function; in the case of the rank mode, this function yields
+  # both the leading edge per gene set, and implicitly, the enrichment
+  # per contrast of the form x vs REST
+  if (!is.loaded("reshape2")) library("reshape2")
+  if (metric %in% c("t", "cor")){
+    lapply(gene.sets, function(x){
+      le <- list()
+      df[which(rownames(df) %in% x),] -> sub
+      
+        apply(sub, 1, function(y){
+          res <- NA
+          if (var(as.numeric(y)) > 0 && metric == "t"){
+            t.test(as.numeric(y[which(labs %in% 0)]), 
+                   as.numeric(y[which(labs %in% 1)]))$p.value -> res
+          } else if (var(as.numeric(y)) > 0 && metric == "cor"){
+            cor.test(as.numeric(y), labs, method="s")$p.value -> res
+          }
+          return(res)
+        }) -> res
+        names(res)[which(res <= 0.05)]  -> le
+        return(le)
+    }) -> le
+  } else if (metric %in% "rank"){
+    # get ranks of genes in the list compared to all other
+    # genes; in x vs REST mode; get those with a tendency
+    # towards enrichment in the group of interest
+    lapply(unique(labs), function(y){
+      labs.mod <- rep(0, length(labs))
+      labs.mod[which(labs %in% y)] <- 1
+      runLimma(df, labs.mod) -> lr
+      lr[rev(order(lr$logFC)),] -> lr
+      lapply(genes, function(z){
+        which(rownames(lr) %in% z) -> ranks
+        if (median(ranks) < quantile(1:nrow(lr))[2]){
+          # return genes which rank highest
+          rownames(lr)[ranks][which(ranks <= median(ranks))] -> res
+        }
+      }) -> le
+    }) -> le
+    lapply(le, function(x) 
+      x[which(sapply(x, function(y) length(y)) > 0)]) -> le
+    names(le) <- unique(labs)
+  }
   return(le)
 }
+
+visSigOverlaps <- function(sub, mode=c("UP", "DN")){
+  # ::: Function to get pairwise overlap between lists of gene signatures; 
+  # ::: group UP with UP and DN with DN; those without any up or down are grouped with UP
+  c(grep("UP", names(sub)), setdiff(1:length(names(sub)), 
+                                    c(grep("UP", names(sub)), grep("DN", names(sub))))) -> up
+  grep("DN", names(sub)) -> dn
+  sub[up] -> sub.up
+  sub[dn] -> sub.dn  
+  
+  df <- NA
+  if (mode == "UP"){
+    df <- matrix(NA, nrow=length(up), ncol=length(up))
+    colnames(df) <- rownames(df) <- names(sub.up)
+  } else {
+    df <- matrix(NA, nrow=length(dn), ncol=length(dn))
+    colnames(df) <- rownames(df) <- names(sub.dn)
+  }
+  
+  for (i in 1:nrow(df)){
+    for (j in 1:ncol(df)){
+      if (i != j){
+        length(intersect(sub[[which(names(sub) %in% colnames(df)[i])]],
+                         sub[[which(names(sub) %in% colnames(df)[j])]]))/
+          max(length(sub[[which(names(sub) %in% colnames(df)[i])]]),
+              length(sub[[which(names(sub) %in% colnames(df)[j])]]))-> df[i,j]
+      }
+    }
+  }
+  
+  return(df)
+}
+
+# ::: signature creation (*.grp format, GSEA-compatible) from limma results (need to implement 
+# alternative for results of DESeq)
+createGRP <- function(res, perc=.05, sig.name=""){
+    # creates UP/DN file based on top x% of up/downregulated genes; genes ordered
+    # by p-value
+    res[which(res$logFC < 0),] -> dn
+    res[which(res$logFC > 0),] -> up
+    dn[order(dn$adj.P.Val),] -> dn
+    up[order(up$adj.P.Val),] -> up
+    dn[1:floor(perc*nrow(dn)),] -> dn
+    up[1:floor(perc*nrow(up)),] -> up
+    
+    fileConn<-file(paste(sig.name, "_up.grp", sep=""))
+    writeLines(paste("#", sig.name, "_UP", sep=""), fileConn)
+    writeLines(rownames(up), fileConn)
+    close(fileConn)
+    
+    fileConn<-file(paste(sig.name, "_dn.grp", sep=""))
+    writeLines(paste("#", sig.name, "_DN", sep=""), fileConn)
+    writeLines(rownames(dn), fileConn)
+    close(fileConn)
+ }
