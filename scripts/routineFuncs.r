@@ -583,4 +583,22 @@ createGRP <- function(res, perc=.05, sig.name=""){
     writeLines(c(paste("#", sig.name, "_DN", sep=""), 
                  rownames(dn)), fileConn)
     close(fileConn)
- }
+}
+
+createGRPFromList <- function(genes, tag=c("up", "down"), sig.name=""){
+  # creates UP/DN file based on top x% of up/downregulated genes; genes ordered
+  # by p-value
+  if (tag == "up"){
+    fileConn<-file(paste(sig.name, "_up.grp", sep=""))
+    writeLines(c(paste("#", sig.name, "_UP", sep=""), 
+                 genes), fileConn)
+    close(fileConn)
+  }
+  
+  if (tag == "down"){
+  fileConn<-file(paste(sig.name, "_dn.grp", sep=""))
+    writeLines(c(paste("#", sig.name, "_DN", sep=""), 
+                 genes), fileConn)
+    close(fileConn)
+  }
+}
