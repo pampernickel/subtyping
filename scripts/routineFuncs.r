@@ -575,12 +575,12 @@ createGRP <- function(res, perc=.05, sig.name=""){
     up[1:floor(perc*nrow(up)),] -> up
     
     fileConn<-file(paste(sig.name, "_up.grp", sep=""))
-    writeLines(paste("#", sig.name, "_UP", sep=""), fileConn)
-    writeLines(rownames(up), fileConn)
+    writeLines(c(paste("#", sig.name, "_UP", sep=""), 
+                 rownames(up)), fileConn)
     close(fileConn)
     
     fileConn<-file(paste(sig.name, "_dn.grp", sep=""))
-    writeLines(paste("#", sig.name, "_DN", sep=""), fileConn)
-    writeLines(rownames(dn), fileConn)
+    writeLines(c(paste("#", sig.name, "_DN", sep=""), 
+                 rownames(dn)), fileConn)
     close(fileConn)
  }
