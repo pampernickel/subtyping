@@ -71,7 +71,19 @@ load("./r.data.files/results/gep/limma_tenomic.rda")
 load("./r.data.files/results/gep/limma_iqbal.rda")
 compareLimmaRes(limma.res.t, limma.res.i, "t") -> comp
 plotComp(comp, "TENOMIC", "GSE58445")
+
+# get correl bet t-stats per subgraup
+lapply(unique(comp$comparison), function(x){
+  cor.test(comp$V1[which(comp$comparison %in% x)],
+           comp$V2[which(comp$comparison %in% x)], method="s") -> cor.res
+}) -> cor.res
+
 compareLimmaRes(limma.res.t, limma.res.i, "logFC") -> comp
+lapply(unique(comp$comparison), function(x){
+  cor.test(comp$V1[which(comp$comparison %in% x)],
+           comp$V2[which(comp$comparison %in% x)], method="s") -> cor.res
+}) -> cor.res
+
 plotComp(comp, "TENOMIC", "GSE58445")
 
 # ::: Check 1
