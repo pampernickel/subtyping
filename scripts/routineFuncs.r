@@ -49,21 +49,48 @@ orderBy <- function(list, by=c("exprs.mat", "tenomic", "affy.no", "sorted", "hyb
 }
 
 runLimma <- function(df, lab){
-  ff <- rep(0,ncol(df))
-  ff[which(lab %in% 1)] <- 1
-  design <- model.matrix(~ -1+factor(ff))
-  colnames(design) <-c("GRP1", "GRP2") 
-  fit <- lmFit(df, design) 
-  contrast.matrix <- makeContrasts( 
-    GRP.1.2 = GRP2 - GRP1,
-    levels=design
-  )
+  if (!is.loaded("limma")){
+    library(limma)
+  }
   
-  fit2 <- contrasts.fit(fit, contrast.matrix) 
-  fit2 <- eBayes(fit2) 
-  
-  toptab.GRP = topTable(fit2, coef=c(1), number = dim(df)[1], adjust="BH")
+  # create switch for limma where unique(lab) > 2
+  toptab.GRP <- NA
+  if (length(unique(lab))==2){
+    ff <- rep(0,ncol(df))
+    ff[which(lab %ni% 0)] <- 1
+    design <- model.matrix(~ -1+factor(ff))
+    colnames(design) <-c("GRP1", "GRP2") 
+    fit <- lmFit(df, design) 
+    contrast.matrix <- makeContrasts( 
+      GRP.1.2 = GRP2 - GRP1,
+      levels=design
+    )
+    fit2 <- contrasts.fit(fit, contrast.matrix) 
+    fit2 <- eBayes(fit2) 
+    toptab.GRP = topTable(fit2, coef=c(1), number = dim(df)[1], adjust="BH")
+  } else {
+    
+  }
   return(toptab.GRP)
+}
+
+getTopTab <- function(res, p.val=.05, mode=c("%", "logFC"), param=""){
+  # method for retrieving top hits from limma toptab
+  res[which(res$adj.P.Val <= p.val),] -> pres
+  if (mode %in% "%" && param != ""){
+    # filter based on top x% adj.p.val (get separately for up and dn genes) 
+    pres[which(pres$logFC < 0),] -> dn
+    pres[which(pres$logFC >= 0),] -> up
+    up[1:ceiling(nrow(up)*param),] -> up
+    dn[1:ceiling(nrow(dn)*param),] -> dn
+    rbind(up, dn) -> press
+  } else if (mode %in% "logFC" && param != ""){
+    pres[which(abs(pres$logFC) >= param),] -> press
+  } else if (mode %ni% c("%", "logFC") ||
+             param == ""){
+    stop("Missing one ore more input parameters (mode/param).")
+  }
+  return(press)
 }
 
 setLimmaRun <- function(mat, g, e=""){
@@ -564,25 +591,33 @@ visSigOverlaps <- function(sub, mode=c("UP", "DN")){
 
 # ::: signature creation (*.grp format, GSEA-compatible) from limma results (need to implement 
 # alternative for results of DESeq)
+subsetLimmaRes <- function(res, perc=.05){
+  res[which(res$logFC < 0),] -> dn
+  res[which(res$logFC > 0),] -> up
+  dn[order(dn$adj.P.Val),] -> dn
+  up[order(up$adj.P.Val),] -> up
+  dn[1:floor(perc*nrow(dn)),] -> dn
+  up[1:floor(perc*nrow(up)),] -> up
+  list(up, dn) -> res
+  names(res) <- c("up", "dn")
+  return(res)
+}
+
 createGRP <- function(res, perc=.05, sig.name=""){
     # creates UP/DN file based on top x% of up/downregulated genes; genes ordered
     # by p-value
-    res[which(res$logFC < 0),] -> dn
-    res[which(res$logFC > 0),] -> up
-    dn[order(dn$adj.P.Val),] -> dn
-    up[order(up$adj.P.Val),] -> up
-    dn[1:floor(perc*nrow(dn)),] -> dn
-    up[1:floor(perc*nrow(up)),] -> up
+  subset(res, perc) -> resl
+  resl$up -> up
+  resl$dn -> dn
+  fileConn<-file(paste(sig.name, "_up.grp", sep=""))
+  writeLines(c(paste("#", sig.name, "_UP", sep=""), 
+               rownames(up)), fileConn)
+  close(fileConn)
     
-    fileConn<-file(paste(sig.name, "_up.grp", sep=""))
-    writeLines(c(paste("#", sig.name, "_UP", sep=""), 
-                 rownames(up)), fileConn)
-    close(fileConn)
-    
-    fileConn<-file(paste(sig.name, "_dn.grp", sep=""))
-    writeLines(c(paste("#", sig.name, "_DN", sep=""), 
-                 rownames(dn)), fileConn)
-    close(fileConn)
+  fileConn<-file(paste(sig.name, "_dn.grp", sep=""))
+  writeLines(c(paste("#", sig.name, "_DN", sep=""), 
+               rownames(dn)), fileConn)
+  close(fileConn)
 }
 
 createGRPFromList <- function(genes, tag=c("up", "down"), sig.name=""){
