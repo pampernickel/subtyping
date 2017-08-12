@@ -141,6 +141,24 @@ plotComp <- function(res, xlab, ylab){
           strip.text=element_text(size=17))
 }
 
+# ::: functions for RNASeq (just-in-case)
+runDESeq <- function(df, colData){
+  if (!is.loaded("DESeq2")){
+    library(DESeq2)
+  }
+  dds <- DESeqDataSetFromMatrix(countData = df,
+                                colData = colData,
+                                design = ~ condition)
+  featureData <- data.frame(gene=rownames(df))
+  dds <- dds[ rowSums(counts(dds)) > 1, ]
+  dds$condition <- factor(dds$condition, levels=c("set1","set2"))
+  dds$condition <- relevel(dds$condition, ref="set1")
+  dds$condition <- droplevels(dds$condition)
+  dds <- DESeq(dds)
+  res <- results(dds)
+  return(res)
+}
+
 # ::: other useful functions for checks
 plotGenes <- function(mat, g, gene, type){
   # plots gene expression across groups
