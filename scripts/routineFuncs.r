@@ -48,7 +48,7 @@ orderBy <- function(list, by=c("exprs.mat", "tenomic", "affy.no", "sorted", "hyb
   return(list)
 }
 
-runLimma <- function(df, lab){
+runLimma <- function(df, lab, eBayes=F){
   if (!is.loaded("limma")){
     library(limma)
   }
@@ -66,7 +66,7 @@ runLimma <- function(df, lab){
       levels=design
     )
     fit2 <- contrasts.fit(fit, contrast.matrix) 
-    fit2 <- eBayes(fit2) 
+    fit2 <- eBayes(fit2, trend=eBayes) 
     toptab.GRP = topTable(fit2, coef=c(1), number = dim(df)[1], adjust="BH")
   } else {
     
@@ -142,6 +142,16 @@ plotComp <- function(res, xlab, ylab){
 }
 
 # ::: functions for RNASeq (just-in-case)
+createLabs <- function(df, labs){
+  colData <- matrix("", nrow=ncol(df), ncol=2)
+  colnames(colData) <- c("condition", "type")
+  colData[,2] <- rep("paired-end", nrow(colData))
+  colData[which(labs %in% 1),1] <- "set2"
+  colData[which(labs %in% 0),1] <- "set1"
+  as.data.frame(colData) -> colData
+  return(colData)
+}
+
 runDESeq <- function(df, colData){
   if (!is.loaded("DESeq2")){
     library(DESeq2)
