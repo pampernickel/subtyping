@@ -68,8 +68,18 @@ runLimma <- function(df, lab, eBayes=F){
     fit2 <- contrasts.fit(fit, contrast.matrix) 
     fit2 <- eBayes(fit2, trend=eBayes) 
     toptab.GRP = topTable(fit2, coef=c(1), number = dim(df)[1], adjust="BH")
-  } else {
-    
+  } else if (length(unique(lab)) > 2) {
+    # case of pairwise comparisons across three groups
+    design <- model.matrix(~ 0+factor(lab))
+    colnames(design) <- paste("group", unique(lab), sep="")
+    combn(paste("group", unique(lab), sep=""), 2) -> pw
+    apply(pw, 2, function(x) paste(x[1],"-",x[2],sep="")) -> x
+    contrast.matrix <- makeContrasts(x, 
+                                     levels=paste("group", unique(lab), sep=""))
+    fit <- lmFit(df, design)
+    fit2 <- contrasts.fit(fit, contrast.matrix)
+    fit2 <- eBayes(fit2)
+    toptab.GRP = topTable(fit2, coef=c(1), number = dim(df)[1], adjust="BH")
   }
   return(toptab.GRP)
 }
