@@ -57,7 +57,9 @@ runLimma <- function(df, lab, eBayes=F){
   toptab.GRP <- NA
   if (length(unique(lab))==2){
     ff <- rep(0,ncol(df))
-    ff[which(lab %ni% 0)] <- 1
+    for (i in 1:length(unique(lab))){
+      ff[which(lab %in% unique(lab)[i])] <- i
+    }
     design <- model.matrix(~ -1+factor(ff))
     colnames(design) <-c("GRP1", "GRP2") 
     fit <- lmFit(df, design) 
@@ -674,4 +676,18 @@ createGRPFromList <- function(genes, tag=c("up", "down"), sig.name=""){
                  genes), fileConn)
     close(fileConn)
   }
+}
+
+createGMTFromList <- function(geneset, path, minSize){
+  # given a list of gene sets, create a .gmt file
+  # get longest set in geneset
+  sapply(geneset, function(x) length(x)) -> gsl
+  geneset[which(gsl >= minSize)] -> geneset
+  mat <- matrix("", ncol=max(gsl)+2, nrow=length(geneset))
+  mat[,1] <- mat[,2] <- names(geneset)
+  for (i in 1:length(geneset)){
+    geneset[[i]] -> cg
+    mat[i,3:(length(cg)+2)] <- cg
+  }
+  write.csv(mat, file=path)
 }
